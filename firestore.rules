@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Protects the /users collection, ensuring only the owner can read and write their own profile.
+     * @path /users/{userId}
+     * @allow (create) - Authenticated user with matching userId creates their own profile.
+     * @allow (get, update, delete) - Authenticated user with matching userId accesses their own profile.
+     * @deny (create) - Authenticated user attempts to create a profile with a mismatched userId.
+     * @deny (get, update, delete) - Authenticated user attempts to access another user's profile.
+     * @principle Enforces document ownership for all operations on user profiles.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+    }
+
+    /**
+     * @description Protects the /users/{userId}/transactions collection, ensuring only the owner can manage their own transactions.
+     * @path /users/{userId}/transactions/{transactionId}
+     * @allow (create) - Authenticated user with matching userId creates a new transaction.
+     * @allow (get, list, update, delete) - Authenticated user with matching userId accesses their own transactions.
+     * @deny (create) - Authenticated user attempts to create a transaction with a mismatched userId.
+     * @deny (get, list, update, delete) - Authenticated user attempts to access another user's transactions.
+     * @principle Enforces document ownership for all operations on user transactions.
+     */
+    match /users/{userId}/transactions/{transactionId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn();
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+  }
+}

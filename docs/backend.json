@@ -1,0 +1,157 @@
+{
+  "entities": {
+    "Transaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents a financial transaction.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the transaction."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Transaction)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the transaction (e.g., 'Grocery Shopping', 'Salary Deposit')."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount of the transaction. Positive for income, negative for expense."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of transaction (Income or Expense).",
+          "format": "string"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the transaction (e.g., 'Food', 'Salary', 'Utilities')."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the transaction.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "amount",
+        "type",
+        "category",
+        "date"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the finance application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the user."
+        },
+        "goal": {
+          "$ref": "#/backend/entities/UserGoal"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "UserGoal": {
+        "title": "User Goal",
+        "type": "object",
+        "description": "Represents a financial goal for a user.",
+        "properties": {
+            "targetAmount": {
+                "type": "number",
+                "description": "The target amount for the goal."
+            },
+            "deadline": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The deadline for achieving the goal."
+            },
+            "dailyTarget": {
+                "type": "number",
+                "description": "Calculated daily savings target."
+            },
+            "progress": {
+                "type": "object",
+                "properties": {
+                    "amountSaved": {
+                        "type": "number"
+                    },
+                    "daysRemaining": {
+                        "type": "number"
+                    }
+                }
+            }
+        },
+        "required": ["targetAmount", "deadline"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information, including their financial goal. Each user has their own document.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Stores transaction data for each user. This path ensures that each user can only access their own transactions. Includes denormalized 'userId' in each transaction document.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "transactionId",
+              "description": "The unique identifier of the transaction."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to ensure data isolation and security for user-specific financial transactions. By leveraging path-based ownership, each user has a dedicated collection for their transactions, eliminating the need for complex authorization rules and ensuring that users can only access their own data. This design promotes Authorization Independence (Strategy A) by avoiding `get()` calls in security rules since ownership is implicitly defined by the path. The structure also simplifies `list` operations (QAPs) as listing transactions is always scoped to a specific user's collection.  Timestamps could also be added to the Transaction Entity to allow for ordering and querying of transactions. The structure naturally supports the invariant of ownership (Strategy D)."
+  }
+}
